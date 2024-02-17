@@ -38,7 +38,9 @@ const FileUploadField: React.FC = () => {
     maxFiles,
   });
 
-  const deleteFile = (fileName: string) => {
+  const deleteFile = (fileName: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
     setUploadedFiles((currentFiles) =>
       currentFiles.filter((file) => file.name !== fileName)
     );
@@ -90,7 +92,7 @@ const FileUploadField: React.FC = () => {
             }}
           >
             {truncateFileName(file.name)} - {(file.size / 1024).toFixed(2)} KB
-            <button onClick={() => deleteFile(file.name)}>Delete</button>
+            <button onClick={(event) => deleteFile(file.name, event)}>Delete</button>
           </li>
         ))}
       </ul>
