@@ -31,7 +31,7 @@ export class UploadController {
     files: Array<Express.Multer.File>,
   ) {
     console.log(files);
-    await this.uploadService.upload(files[0].originalname, files[0].buffer);
+    await this.uploadService.upload(files[0].originalname, files[0].buffer );
     // TODO: setup and implement uploading files to AWS S3
   }
 }

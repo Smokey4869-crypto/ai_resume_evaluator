@@ -11,15 +11,13 @@ export class UploadService {
 
   async upload(fileName: string, file: Buffer) {
     try {
-        const response = await this.s3Client.send(
+        await this.s3Client.send(
             new PutObjectCommand({
               Bucket: 's3-nestjs-uploader',
               Key: fileName,
               Body: file,
             }),
           );
-        
-        console.log(response);
     } catch(error) {
         console.log(error)
     }
