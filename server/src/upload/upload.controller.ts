@@ -1,9 +1,11 @@
 import {
   Controller,
   FileTypeValidator,
+  HttpStatus,
   MaxFileSizeValidator,
   ParseFilePipe,
   Post,
+  Res,
   UploadedFile,
   UploadedFiles,
   UseInterceptors,
@@ -13,13 +15,12 @@ import { UploadService } from './upload.service';
 
 @Controller('upload')
 export class UploadController {
-
-    constructor(private readonly uploadService: UploadService) {}
+  constructor(private readonly uploadService: UploadService) {}
 
   @Post()
   @UseInterceptors(FilesInterceptor('files'))
   async uploadFiles(
-    @UploadedFiles(
+    @UploadedFiles()
     // used for handling SINGLE FILE only
     //   new ParseFilePipe({
     //     validators: [
@@ -27,11 +28,14 @@ export class UploadController {
     //       new FileTypeValidator({ fileType: 'image/jpeg' }),
     //     ],
     //   }),
-    )
     files: Array<Express.Multer.File>,
   ) {
-    console.log(files);
-    await this.uploadService.upload(files[0].originalname, files[0].buffer );
-    // TODO: setup and implement uploading files to AWS S3
+    // console.log(await this.uploadService.upload(files[0].originalname, files[0].buffer))
+    const result = await this.uploadService.upload(
+      files[0].originalname,
+      files[0].buffer,
+    );
+
+    return result;
   }
 }

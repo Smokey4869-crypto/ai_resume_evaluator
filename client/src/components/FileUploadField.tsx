@@ -1,11 +1,13 @@
 import React, { useState, useMemo, CSSProperties, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
+import { terminal } from "virtual:terminal";
 
 const FileUploadField: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [fileRejectionMessage, setFileRejectionMessage] = useState<string>("");
   const maxFiles = 3; // Limit to 3 files
   const maxSize = 10485760; // 10MB
+  console.log("hello");
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } =
     useDropzone({
@@ -72,16 +74,23 @@ const FileUploadField: React.FC = () => {
     async (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
       event.stopPropagation();
+
       const formData = new FormData();
       uploadedFiles.forEach((file) => {
         formData.append("files", file);
       });
 
       try {
+        terminal.log("Hello1");
         const response = await fetch("http://localhost:3000/upload/", {
           method: "POST",
           body: formData,
         });
+
+        terminal.log("Hello");
+
+        const data = await response.json(); // Parse the JSON body
+        terminal.log("Upload successful:", data); // Log the full response
 
         if (response.ok) {
           console.log("File uploaded successfully");
@@ -112,7 +121,7 @@ const FileUploadField: React.FC = () => {
       )}
       <ul
         style={{
-          paddingLeft: '0'
+          paddingLeft: "0",
         }}
       >
         {uploadedFiles.map((file, index) => (
@@ -141,11 +150,11 @@ const FileUploadField: React.FC = () => {
       ) : (
         <div
           style={{
-            padding: '5px',
+            padding: "5px",
             border: "2px dashed #cccccc",
             color: "#cccccc",
             marginBottom: "10px",
-            cursor: 'pointer'
+            cursor: "pointer",
           }}
         >
           <span>Add more files...</span>

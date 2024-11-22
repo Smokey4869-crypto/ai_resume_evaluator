@@ -5,16 +5,21 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
 @Module({
-  imports: [
-    ThrottlerModule.forRoot([{
-      ttl: 6000,
-      limit: 3
-    }])
-  ],
+  // imports: [
+  //   ThrottlerModule.forRoot([
+  //     {
+  //       ttl: 6000,
+  //       limit: 3,
+  //     },
+  //   ]),
+  // ],
   controllers: [UploadController],
-  providers: [UploadService, {
-    provide: APP_GUARD, 
-    useClass: ThrottlerGuard
-  }]
+  providers: [
+    UploadService,
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: ThrottlerGuard,
+    // },
+  ],
 })
 export class UploadModule {}

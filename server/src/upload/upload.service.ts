@@ -11,15 +11,25 @@ export class UploadService {
 
   async upload(fileName: string, file: Buffer) {
     try {
-        await this.s3Client.send(
-            new PutObjectCommand({
-              Bucket: 's3-nestjs-uploader',
-              Key: fileName,
-              Body: file,
-            }),
-          );
-    } catch(error) {
-        console.log(error)
+      const response = await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: 's3-nestjs-uploader',
+          Key: fileName,
+          Body: file,
+        }),
+      );
+
+      console.log("success")
+      return {
+        code: 200,
+        message: 'File uploaded successfully',
+      }
+    } catch (error) {
+      console.log(error);
+      return {
+        code: 500, 
+        message: 'Error uploading file'
+      }
     }
   }
 }
