@@ -2,12 +2,16 @@ import React, { useState, useMemo, CSSProperties, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { terminal } from "virtual:terminal";
 
+interface FilePreview {
+  file: File;
+  previewUrl: string | null; // Base64 data URL for images
+}
+
 const FileUploadField: React.FC = () => {
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<FilePreview[]>([]);
   const [fileRejectionMessage, setFileRejectionMessage] = useState<string>("");
   const maxFiles = 3; // Limit to 3 files
   const maxSize = 10485760; // 10MB
-  console.log("hello");
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } =
     useDropzone({
@@ -23,7 +27,13 @@ const FileUploadField: React.FC = () => {
             `You can only upload up to ${maxFiles} files.`
           );
         } else {
-          setUploadedFiles((current) => [...current, ...acceptedFiles]);
+          const newPreviews = acceptedFiles.map((file) => ({
+            file,
+            previewUrl: file.type.startsWith("image/")
+              ? URL.createObjectURL(file) // Generate object URL for images
+              : null,
+          }));
+          setUploadedFiles((current) => [...current, ...newPreviews]);
           setFileRejectionMessage("");
         }
 
@@ -45,7 +55,7 @@ const FileUploadField: React.FC = () => {
     event.preventDefault();
     event.stopPropagation();
     setUploadedFiles((currentFiles) =>
-      currentFiles.filter((file) => file.name !== fileName)
+      currentFiles.filter((filePreview) => filePreview.file.name !== fileName)
     );
   };
 
@@ -76,7 +86,7 @@ const FileUploadField: React.FC = () => {
       event.stopPropagation();
 
       const formData = new FormData();
-      uploadedFiles.forEach((file) => {
+      uploadedFiles.forEach(({ file }) => {
         formData.append("files", file);
       });
 
@@ -124,7 +134,7 @@ const FileUploadField: React.FC = () => {
           paddingLeft: "0",
         }}
       >
-        {uploadedFiles.map((file, index) => (
+        {uploadedFiles.map(({ file, previewUrl }, index) => (
           <li
             key={index}
             style={{
@@ -138,6 +148,13 @@ const FileUploadField: React.FC = () => {
               gap: "10px",
             }}
           >
+            {previewUrl && (
+              <img
+                src={previewUrl}
+                alt={file.name}
+                style={{ width: "50px", height: "50px", objectFit: "cover" }}
+              />
+            )}
             {truncateFileName(file.name)} - {(file.size / 1024).toFixed(2)} KB
             <button onClick={(event) => deleteFile(file.name, event)}>
               Delete
