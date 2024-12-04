@@ -30,3 +30,10 @@ module "lambda_function" {
   lambda_zip_path = "./modules/data/lambda_code/process-file.zip"
   bucket_name     = module.s3_bucket.bucket_name
 }
+
+# Call CloudWatch Alarms Module
+module "cloudwatch_alarms" {
+  source               = "./modules/cloudwatch_alarms"
+  lambda_function_name = module.lambda_function.function_name
+  sqs_queue_name       = module.sqs_queue.queue_name
+}
