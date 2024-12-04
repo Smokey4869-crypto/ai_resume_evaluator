@@ -29,6 +29,7 @@ module "lambda_function" {
   sqs_queue_arn   = module.sqs_queue.queue_arn
   lambda_zip_path = "./modules/data/lambda_code/process-file.zip"
   bucket_name     = module.s3_bucket.bucket_name
+  dlq_arn         = module.sqs_queue.dlq_arn
 }
 
 # Call CloudWatch Alarms Module

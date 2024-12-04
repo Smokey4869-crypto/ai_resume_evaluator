@@ -23,3 +23,14 @@ resource "aws_sqs_queue_policy" "task_queue_policy" {
         }]
     })
 }
+
+resource "aws_sqs_queue" "dlq" {
+    name = "file-processing-dlq"
+    message_retention_seconds = 1209600 #14 days
+    visibility_timeout_seconds = 30
+
+    tags = {
+        Environment = "production"
+        Name = "file-processing-dlq"
+    }
+}
