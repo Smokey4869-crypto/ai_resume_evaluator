@@ -11,8 +11,8 @@ logs/
 
 # Ignore Terraform cache files and directories
 **/.terraform/
-terraform.tfstate
-terraform.tfstate.backup
+**/terraform.tfstate
+**/terraform.tfstate.backup
 
 # Ignore system files
 .DS_Store
