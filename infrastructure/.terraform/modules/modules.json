@@ -1,0 +1,1 @@
+{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"lambda_function","Source":"./modules/lambda","Dir":"modules/lambda"},{"Key":"s3_bucket","Source":"./modules/s3","Dir":"modules/s3"},{"Key":"sqs_queue","Source":"./modules/sqs","Dir":"modules/sqs"}]}
