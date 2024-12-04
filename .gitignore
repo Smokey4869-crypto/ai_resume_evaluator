@@ -10,7 +10,7 @@ logs/
 .env.local
 
 # Ignore Terraform cache files and directories
-.terraform/
+**/.terraform/
 terraform.tfstate
 terraform.tfstate.backup
 
