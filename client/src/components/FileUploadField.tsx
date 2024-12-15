@@ -20,6 +20,8 @@ const FileUploadField: React.FC = () => {
         "image/jpeg": [],
         "application/pdf": [],
         "text/plain": [],
+        "application/msword": [],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": []
       },
       onDrop: (acceptedFiles, fileRejections) => {
         if (uploadedFiles.length + acceptedFiles.length > maxFiles) {

@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 resource "aws_iam_role" "lambda_exec" {
   name = "lambda-exec-role"
   assume_role_policy = jsonencode({
@@ -16,11 +18,12 @@ resource "aws_iam_role" "lambda_exec" {
 
 
 resource "aws_lambda_function" "process_file" {
-  function_name = var.lambda_name
-  runtime       = "nodejs20.x"
-  handler       = "index.handler"
-  role          = aws_iam_role.lambda_exec.arn
-  filename      = var.lambda_zip_path
+  function_name    = var.lambda_name
+  runtime          = "nodejs20.x"
+  handler          = "index.handler"
+  role             = aws_iam_role.lambda_exec.arn
+  filename         = var.lambda_zip_path
+  source_code_hash = filebase64sha256(var.lambda_zip_path)
 
   environment {
     variables = {
@@ -49,7 +52,7 @@ resource "aws_lambda_permission" "allow_s3_trigger" {
 
 resource "aws_iam_policy" "lambda_exec_policy" {
   name        = "LambdaExecutionPolicy"
-  description = "Permission for Lambda to access SQS, S3, and CloudWatch"
+  description = "Permission for Lambda to access SQS, S3, CloudWatch and Textract"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -90,7 +93,21 @@ resource "aws_iam_policy" "lambda_exec_policy" {
           "logs:PutLogEvents",
         ],
         Resource = "arn:aws:logs:*:*:*"
+      },
+
+      {
+        Effect = "Allow",
+        Action = [
+          "textract:DetectDocumentText"
+        ],
+        Resource = "*"
+      },
+      {
+        "Effect" : "Allow",
+        "Action" : "bedrock:InvokeModel",
+        "Resource" : "*"
       }
+
     ]
   })
 }

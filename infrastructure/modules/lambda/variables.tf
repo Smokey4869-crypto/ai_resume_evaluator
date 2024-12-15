@@ -27,3 +27,8 @@ variable "dlq_arn" {
   description = "The ARN of the DLQ queue"
   type        = string
 }
+
+variable "aws_region" {
+  description = "The region of the allowed resource access"
+  type        = string
+}
