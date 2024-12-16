@@ -13,6 +13,22 @@ const FileUploadField: React.FC = () => {
   const maxFiles = 3; // Limit to 3 files
   const maxSize = 10485760; // 10MB
 
+  const testPrompt = `User: Welcome to KrisFlyer, Mr Minh Nguyen KrisFly membership number 886 517 6437 You can proceed to verify your status as a student to book exclusive fares and enjoy additional privileges. You can access your digital membership card by downloading SINGAPORE AIRLINES KRISFLYER the SingaporeAir mobile app. Alternatively, a printable version is available when you log in to your KrisFlyer account, under STAR ALLIANCE the "Profile" tab. To start earning KrisFlyer miles, please quote your KrisFlyer Minh Nguyen membership number when you make a booking with 886 517 6437 Singapore Airlines, or our airline and nonairline partners. MEMBER SINCE Dec 2021 VERIFY STUDENT STATUS By using the website, you are agreeing to our Privacy Policy, Terms  Conditions and the use of cookies in accordance with our Cookie Policy. ACCEPT 5270803.fls.doubleclick.net..
+Bot:`;
+
+  // Prepare the payload following Titan's schema
+  const payload = {
+    inputText: testPrompt, // Wrap the inputText per Titan's conversational format
+    textGenerationConfig: {
+      maxTokenCount: 512,
+      temperature: 0.7,
+      topP: 0.9,
+      stopSequences: ["\n"], // Optional stop sequence
+    },
+  };
+
+  console.log(JSON.stringify(payload));
+
   const { getRootProps, getInputProps, isDragActive, isDragReject } =
     useDropzone({
       accept: {
@@ -21,7 +37,8 @@ const FileUploadField: React.FC = () => {
         "application/pdf": [],
         "text/plain": [],
         "application/msword": [],
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": []
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+          [],
       },
       onDrop: (acceptedFiles, fileRejections) => {
         if (uploadedFiles.length + acceptedFiles.length > maxFiles) {

@@ -23,6 +23,7 @@ resource "aws_lambda_function" "process_file" {
   handler          = "index.handler"
   role             = aws_iam_role.lambda_exec.arn
   filename         = var.lambda_zip_path
+  timeout          = 15
   source_code_hash = filebase64sha256(var.lambda_zip_path)
 
   environment {
