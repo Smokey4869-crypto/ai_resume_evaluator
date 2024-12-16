@@ -1,6 +1,6 @@
-import React, { useState, useMemo, CSSProperties, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { terminal } from "virtual:terminal";
+import styled from "styled-components";
 
 interface FilePreview {
   file: File;
@@ -13,64 +13,39 @@ const FileUploadField: React.FC = () => {
   const maxFiles = 3; // Limit to 3 files
   const maxSize = 10485760; // 10MB
 
-  const testPrompt = `User: Welcome to KrisFlyer, Mr Minh Nguyen KrisFly membership number 886 517 6437 You can proceed to verify your status as a student to book exclusive fares and enjoy additional privileges. You can access your digital membership card by downloading SINGAPORE AIRLINES KRISFLYER the SingaporeAir mobile app. Alternatively, a printable version is available when you log in to your KrisFlyer account, under STAR ALLIANCE the "Profile" tab. To start earning KrisFlyer miles, please quote your KrisFlyer Minh Nguyen membership number when you make a booking with 886 517 6437 Singapore Airlines, or our airline and nonairline partners. MEMBER SINCE Dec 2021 VERIFY STUDENT STATUS By using the website, you are agreeing to our Privacy Policy, Terms  Conditions and the use of cookies in accordance with our Cookie Policy. ACCEPT 5270803.fls.doubleclick.net..
-Bot:`;
-
-  // Prepare the payload following Titan's schema
-  const payload = {
-    inputText: testPrompt, // Wrap the inputText per Titan's conversational format
-    textGenerationConfig: {
-      maxTokenCount: 512,
-      temperature: 0.7,
-      topP: 0.9,
-      stopSequences: ["\n"], // Optional stop sequence
+  const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
+    accept: {
+      "image/png": [],
+      "image/jpeg": [],
+      "application/pdf": [],
+      "text/plain": [],
+      "application/msword": [],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [],
     },
-  };
+    onDrop: (acceptedFiles, fileRejections) => {
+      if (uploadedFiles.length + acceptedFiles.length > maxFiles) {
+        setFileRejectionMessage(`You can only upload up to ${maxFiles} files.`);
+      } else {
+        const newPreviews = acceptedFiles.map((file) => ({
+          file,
+          previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+        }));
+        setUploadedFiles((current) => [...current, ...newPreviews]);
+        setFileRejectionMessage("");
+      }
 
-  console.log(JSON.stringify(payload));
+      if (fileRejections.length > 0) {
+        setFileRejectionMessage("Some files were rejected.");
+      }
+    },
+    onDropRejected: () => {
+      setFileRejectionMessage("File type not accepted or file too large.");
+    },
+    maxSize,
+    maxFiles,
+  });
 
-  const { getRootProps, getInputProps, isDragActive, isDragReject } =
-    useDropzone({
-      accept: {
-        "image/png": [],
-        "image/jpeg": [],
-        "application/pdf": [],
-        "text/plain": [],
-        "application/msword": [],
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-          [],
-      },
-      onDrop: (acceptedFiles, fileRejections) => {
-        if (uploadedFiles.length + acceptedFiles.length > maxFiles) {
-          setFileRejectionMessage(
-            `You can only upload up to ${maxFiles} files.`
-          );
-        } else {
-          const newPreviews = acceptedFiles.map((file) => ({
-            file,
-            previewUrl: file.type.startsWith("image/")
-              ? URL.createObjectURL(file) // Generate object URL for images
-              : null,
-          }));
-          setUploadedFiles((current) => [...current, ...newPreviews]);
-          setFileRejectionMessage("");
-        }
-
-        if (fileRejections.length > 0) {
-          setFileRejectionMessage("Some files were rejected.");
-        }
-      },
-      onDropRejected: () => {
-        setFileRejectionMessage("File type not accepted or file too large.");
-      },
-      maxSize,
-      maxFiles,
-    });
-
-  const deleteFile = (
-    fileName: string,
-    event: React.MouseEvent<HTMLButtonElement>
-  ) => {
+  const deleteFile = (fileName: string, event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
     setUploadedFiles((currentFiles) =>
@@ -85,128 +60,144 @@ Bot:`;
     return name;
   };
 
-  const dropzoneStyle: CSSProperties = useMemo(
-    () => ({
-      border: isDragActive ? "2px solid green" : "2px dashed #4a4747cc",
-      padding: "20px",
-      textAlign: "center",
-      backgroundColor: isDragReject
-        ? "#ffdddd"
-        : isDragActive
-        ? "#ddffdd"
-        : "#ffffff",
-    }),
-    [isDragActive, isDragReject]
-  );
+  const uploadFile = useCallback(async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
 
-  const uploadFile = useCallback(
-    async (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
+    const formData = new FormData();
+    uploadedFiles.forEach(({ file }) => {
+      formData.append("files", file);
+    });
 
-      const formData = new FormData();
-      uploadedFiles.forEach(({ file }) => {
-        formData.append("files", file);
+    try {
+      console.log("Uploading...");
+      const response = await fetch("http://localhost:3000/upload/", {
+        method: "POST",
+        body: formData,
       });
 
-      try {
-        terminal.log("Hello1");
-        const response = await fetch("http://localhost:3000/upload/", {
-          method: "POST",
-          body: formData,
-        });
-
-        terminal.log("Hello");
-
-        const data = await response.json(); // Parse the JSON body
-        terminal.log("Upload successful:", data); // Log the full response
-
-        if (response.ok) {
-          console.log("File uploaded successfully");
-        } else {
-          console.error("Upload failed");
-        }
-      } catch (error) {
-        console.error("Error:", error);
+      if (response.ok) {
+        console.log("File uploaded successfully");
+      } else {
+        console.error("Upload failed");
       }
-    },
-    [uploadedFiles]
-  );
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }, [uploadedFiles]);
 
   return (
-    <div {...getRootProps({ style: dropzoneStyle })}>
+    <Dropzone {...getRootProps()} isDragActive={isDragActive} isDragReject={isDragReject}>
       <input {...getInputProps()} />
       {isDragActive ? (
-        <p>Drop the files here...</p>
+        <Message>Drop the files here...</Message>
       ) : (
         <>
-          <p>Drag 'n' drop some files here, or click to select files</p>
-          <p>Accepted file types: .png, .jpeg, .pdf, .txt.</p>
-          <p>Maximum file size: 10MB.</p>
+          <Message>Drag 'n' drop some files here, or click to select files</Message>
+          <Info>Accepted file types: .png, .jpeg, .pdf, .txt, .doc, .docx</Info>
+          <Info>Maximum file size: 10MB.</Info>
         </>
       )}
-      {fileRejectionMessage && (
-        <p style={{ color: "red" }}>{fileRejectionMessage}</p>
-      )}
-      <ul
-        style={{
-          paddingLeft: "0",
-        }}
-      >
+      {fileRejectionMessage && <Error>{fileRejectionMessage}</Error>}
+      <FileList>
         {uploadedFiles.map(({ file, previewUrl }, index) => (
-          <li
-            key={index}
-            style={{
-              background: "lightGrey",
-              padding: "5px 8px",
-              marginBottom: "5px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              border: "5px",
-              gap: "10px",
-            }}
-          >
-            {previewUrl && (
-              <img
-                src={previewUrl}
-                alt={file.name}
-                style={{ width: "50px", height: "50px", objectFit: "cover" }}
-              />
-            )}
-            {truncateFileName(file.name)} - {(file.size / 1024).toFixed(2)} KB
-            <button onClick={(event) => deleteFile(file.name, event)}>
-              Delete
-            </button>
-          </li>
+          <FileItem key={index}>
+            {previewUrl && <Preview src={previewUrl} alt={file.name} />}
+            <FileName>{truncateFileName(file.name)} - {(file.size / 1024).toFixed(2)} KB</FileName>
+            <DeleteButton onClick={(event) => deleteFile(file.name, event)}>Delete</DeleteButton>
+          </FileItem>
         ))}
-      </ul>
+      </FileList>
       {uploadedFiles.length >= maxFiles ? (
-        <p style={{ color: "red" }}>File limit reached.</p>
+        <Error>File limit reached.</Error>
       ) : (
-        <div
-          style={{
-            padding: "5px",
-            border: "2px dashed #cccccc",
-            color: "#cccccc",
-            marginBottom: "10px",
-            cursor: "pointer",
-          }}
-        >
-          <span>Add more files...</span>
-        </div>
+        <AddMore>Add more files...</AddMore>
       )}
-      <button
-        style={{
-          background: "lightGray",
-        }}
-        disabled={uploadedFiles.length == 0}
-        onClick={uploadFile}
-      >
+      <UploadButton disabled={uploadedFiles.length === 0} onClick={uploadFile}>
         Upload
-      </button>
-    </div>
+      </UploadButton>
+    </Dropzone>
   );
 };
+
+// Styled Components
+const Dropzone = styled.div<{ isDragActive?: boolean; isDragReject?: boolean }>`
+  border: ${(props) => (props.isDragActive ? "2px solid green" : "2px dashed #ccc")};
+  padding: 20px;
+  text-align: center;
+  background-color: ${(props) => (props.isDragReject ? "#ffe6e6" : props.isDragActive ? "#e6ffe6" : "#fff")};
+`;
+
+const Message = styled.p`
+  font-size: 14px;
+  color: #333;
+`;
+
+const Info = styled.p`
+  font-size: 12px;
+  color: #666;
+`;
+
+const Error = styled.p`
+  font-size: 14px;
+  color: red;
+`;
+
+const FileList = styled.ul`
+  padding-left: 0;
+  margin-top: 10px;
+`;
+
+const FileItem = styled.li`
+  background: #f4f4f4;
+  padding: 5px 8px;
+  margin-bottom: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const FileName = styled.span`
+  flex: 1;
+`;
+
+const Preview = styled.img`
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+`;
+
+const DeleteButton = styled.button`
+  background: none;
+  border: none;
+  color: red;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const AddMore = styled.div`
+  padding: 10px;
+  border: 2px dashed #ccc;
+  color: #ccc;
+  text-align: center;
+  cursor: pointer;
+`;
+
+const UploadButton = styled.button`
+  background: #007bff;
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  margin-top: 10px;
+
+  &:disabled {
+    background: #ddd;
+    cursor: not-allowed;
+  }
+`;
 
 export default FileUploadField;
