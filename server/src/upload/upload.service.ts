@@ -1,35 +1,73 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as AWS from 'aws-sdk';
 
 @Injectable()
 export class UploadService {
-  private readonly s3Client = new S3Client({
-    region: this.configService.getOrThrow('AWS_S3_REGION'),
-  });
-  constructor(private readonly configService: ConfigService) {}
+  private readonly lambda: AWS.Lambda;
 
-  async upload(fileName: string, file: Buffer) {
+  constructor(private readonly configService: ConfigService) {
+    AWS.config.update({ region: this.configService.getOrThrow('AWS_REGION') });
+    this.lambda = new AWS.Lambda();
+  }
+
+  async upload(
+    files: Express.Multer.File[],
+    metadata: { uploadType: string; title?: string; description?: string }
+  ) {
+    
     try {
-      const response = await this.s3Client.send(
-        new PutObjectCommand({
-          Bucket: 'file-uploader-bucket-50294247',
-          Key: fileName,
-          Body: file,
+      if (!metadata || !metadata.uploadType) {
+        throw new Error('Missing or invalid uploadType in metadata');
+      }
+
+      // Example: Call Lambda function for processing the file(s) and metadata
+      const results = await Promise.all(
+        files.map(async (file) => {
+          const payload = {
+            uploadType: metadata.uploadType,
+            metadata: {
+              title: metadata.title,
+              description: metadata.description,
+            },
+            file: file.buffer.toString('base64'), // Send file as base64
+          };
+
+          const params = {
+            FunctionName: this.configService.getOrThrow(
+              'AWS_LAMBDA_FUNCTION_NAME',
+            ),
+            Payload: JSON.stringify(payload),
+          };
+
+          // Invoke the Lambda function
+
+          console.log('params', params);
+
+          const response = await this.lambda.invoke(params).promise();
+          const result = JSON.parse(response.Payload as string);
+
+          console.log('invoke lambda', result);
+
+          if (response.FunctionError) {
+            throw new Error(
+              result.errorMessage || 'Error returned from Lambda function',
+            );
+          }
+
+          return result;
         }),
       );
 
-      console.log("success")
+      // Return aggregated results
       return {
         code: 200,
-        message: 'File uploaded successfully',
-      }
+        message: 'Files processed successfully',
+        results,
+      };
     } catch (error) {
-      console.log(error);
-      return {
-        code: 500, 
-        message: 'Error uploading file'
-      }
+      console.error('Error in service:', error);
+      throw new Error(`Upload service failed: ${error.message}`);
     }
   }
 }

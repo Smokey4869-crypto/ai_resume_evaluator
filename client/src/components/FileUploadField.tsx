@@ -13,39 +13,48 @@ const FileUploadField: React.FC = () => {
   const maxFiles = 3; // Limit to 3 files
   const maxSize = 10485760; // 10MB
 
-  const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
-    accept: {
-      "image/png": [],
-      "image/jpeg": [],
-      "application/pdf": [],
-      "text/plain": [],
-      "application/msword": [],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [],
-    },
-    onDrop: (acceptedFiles, fileRejections) => {
-      if (uploadedFiles.length + acceptedFiles.length > maxFiles) {
-        setFileRejectionMessage(`You can only upload up to ${maxFiles} files.`);
-      } else {
-        const newPreviews = acceptedFiles.map((file) => ({
-          file,
-          previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
-        }));
-        setUploadedFiles((current) => [...current, ...newPreviews]);
-        setFileRejectionMessage("");
-      }
+  const { getRootProps, getInputProps, isDragActive, isDragReject } =
+    useDropzone({
+      accept: {
+        "image/png": [],
+        "image/jpeg": [],
+        "application/pdf": [],
+        "text/plain": [],
+        "application/msword": [],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+          [],
+      },
+      onDrop: (acceptedFiles, fileRejections) => {
+        if (uploadedFiles.length + acceptedFiles.length > maxFiles) {
+          setFileRejectionMessage(
+            `You can only upload up to ${maxFiles} files.`
+          );
+        } else {
+          const newPreviews = acceptedFiles.map((file) => ({
+            file,
+            previewUrl: file.type.startsWith("image/")
+              ? URL.createObjectURL(file)
+              : null,
+          }));
+          setUploadedFiles((current) => [...current, ...newPreviews]);
+          setFileRejectionMessage("");
+        }
 
-      if (fileRejections.length > 0) {
-        setFileRejectionMessage("Some files were rejected.");
-      }
-    },
-    onDropRejected: () => {
-      setFileRejectionMessage("File type not accepted or file too large.");
-    },
-    maxSize,
-    maxFiles,
-  });
+        if (fileRejections.length > 0) {
+          setFileRejectionMessage("Some files were rejected.");
+        }
+      },
+      onDropRejected: () => {
+        setFileRejectionMessage("File type not accepted or file too large.");
+      },
+      maxSize,
+      maxFiles,
+    });
 
-  const deleteFile = (fileName: string, event: React.MouseEvent<HTMLButtonElement>) => {
+  const deleteFile = (
+    fileName: string,
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
     event.preventDefault();
     event.stopPropagation();
     setUploadedFiles((currentFiles) =>
@@ -60,40 +69,64 @@ const FileUploadField: React.FC = () => {
     return name;
   };
 
-  const uploadFile = useCallback(async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const uploadFile = useCallback(
+    async (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
 
-    const formData = new FormData();
-    uploadedFiles.forEach(({ file }) => {
-      formData.append("files", file);
-    });
+      // Example metadata
+      const metadata = {
+        uploadType: "JD",
+        metadata: {
+          title: "Job Description Upload",
+          description: "Uploading job descriptions for processing",
+        },
+      };
 
-    try {
-      console.log("Uploading...");
-      const response = await fetch("http://localhost:3000/upload/", {
-        method: "POST",
-        body: formData,
+      const formData = new FormData();
+
+      // Add metadata as JSON string
+      formData.append("metadata", JSON.stringify(metadata));
+
+      // Add each file to the FormData
+      uploadedFiles.forEach(({ file }) => {
+        formData.append("files", file);
       });
 
-      if (response.ok) {
-        console.log("File uploaded successfully");
-      } else {
-        console.error("Upload failed");
+      try {
+        console.log("Uploading...");
+        const response = await fetch("http://localhost:3000/upload/", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          console.log("Files uploaded successfully");
+        } else {
+          const errorData = await response.json();
+          console.error("Upload failed", errorData);
+        }
+      } catch (error) {
+        console.error("Error:", error);
       }
-    } catch (error) {
-      console.error("Error:", error);
-    }
-  }, [uploadedFiles]);
+    },
+    [uploadedFiles]
+  );
 
   return (
-    <Dropzone {...getRootProps()} isDragActive={isDragActive} isDragReject={isDragReject}>
+    <Dropzone
+      {...getRootProps()}
+      isDragActive={isDragActive}
+      isDragReject={isDragReject}
+    >
       <input {...getInputProps()} />
       {isDragActive ? (
         <Message>Drop the files here...</Message>
       ) : (
         <>
-          <Message>Drag 'n' drop some files here, or click to select files</Message>
+          <Message>
+            Drag 'n' drop some files here, or click to select files
+          </Message>
           <Info>Accepted file types: .png, .jpeg, .pdf, .txt, .doc, .docx</Info>
           <Info>Maximum file size: 10MB.</Info>
         </>
@@ -103,8 +136,12 @@ const FileUploadField: React.FC = () => {
         {uploadedFiles.map(({ file, previewUrl }, index) => (
           <FileItem key={index}>
             {previewUrl && <Preview src={previewUrl} alt={file.name} />}
-            <FileName>{truncateFileName(file.name)} - {(file.size / 1024).toFixed(2)} KB</FileName>
-            <DeleteButton onClick={(event) => deleteFile(file.name, event)}>Delete</DeleteButton>
+            <FileName>
+              {truncateFileName(file.name)} - {(file.size / 1024).toFixed(2)} KB
+            </FileName>
+            <DeleteButton onClick={(event) => deleteFile(file.name, event)}>
+              Delete
+            </DeleteButton>
           </FileItem>
         ))}
       </FileList>
@@ -122,10 +159,12 @@ const FileUploadField: React.FC = () => {
 
 // Styled Components
 const Dropzone = styled.div<{ isDragActive?: boolean; isDragReject?: boolean }>`
-  border: ${(props) => (props.isDragActive ? "2px solid green" : "2px dashed #ccc")};
+  border: ${(props) =>
+    props.isDragActive ? "2px solid green" : "2px dashed #ccc"};
   padding: 20px;
   text-align: center;
-  background-color: ${(props) => (props.isDragReject ? "#ffe6e6" : props.isDragActive ? "#e6ffe6" : "#fff")};
+  background-color: ${(props) =>
+    props.isDragReject ? "#ffe6e6" : props.isDragActive ? "#e6ffe6" : "#fff"};
 `;
 
 const Message = styled.p`

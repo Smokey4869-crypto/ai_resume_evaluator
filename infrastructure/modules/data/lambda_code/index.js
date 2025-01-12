@@ -1,128 +1,103 @@
-const AWS = require("aws-sdk");
-const textract = new AWS.Textract();
-const {
-  BedrockRuntimeClient,
-  InvokeModelCommand,
-} = require("@aws-sdk/client-bedrock-runtime");
+const AWS = require('aws-sdk');
+const S3 = new AWS.S3();
+const DynamoDB = new AWS.DynamoDB.DocumentClient();
+const uuid = require('uuid');
 
-// Initialize the Bedrock client
-const bedrockClient = new BedrockRuntimeClient({ region: "us-east-1" });
+const BUCKET_NAME = "file-uploader-bucket-50294247";
+const TABLE_NAME = "JDTable";
 
 exports.handler = async (event) => {
   try {
-    console.log("Received event:", JSON.stringify(event, null, 2));
+    // Log the incoming event for debugging
+    console.log('Received event:', JSON.stringify(event, null, 2));
 
-    // Parse the SQS message body
-    const sqsMessageBody = JSON.parse(event.Records[0].body);
+    // Parse the payload correctly based on the structure
+    const { uploadType, metadata, file } = event;
 
-    // Extract bucket and file details from the embedded S3 event
-    const s3Event = sqsMessageBody.Records[0];
-    const bucketName = s3Event.s3.bucket.name;
-    let fileName = s3Event.s3.object.key;
+    if (!uploadType || !file) {
+      throw new Error('Invalid payload: Missing required fields (uploadType or file).');
+    }
 
-    // Decode S3 Key to handle spaces or special characters
-    fileName = decodeURIComponent(fileName.replace(/\+/g, " "));
+    if (uploadType === 'JD') {
+      const newJdId = `JD-${uuid.v4()}`;
+      const jdKey = `jds/${newJdId}.json`;
 
-    console.log(`Processing file: ${fileName} from S3 bucket: ${bucketName}`);
-
-    // Step 1: Call Textract to extract text
-    const textractResponse = await textract
-      .detectDocumentText({
-        Document: {
-          S3Object: {
-            Bucket: bucketName,
-            Name: fileName,
-          },
+      // Store JD metadata in DynamoDB
+      await DynamoDB.put({
+        TableName: TABLE_NAME,
+        Item: {
+          jdId: newJdId,
+          metadata,
+          resumes: [], // Empty list for resumes
+          createdAt: new Date().toISOString(),
         },
-      })
-      .promise();
+      }).promise();
 
-    // Extract text lines from Textract response
-    const extractedText = textractResponse.Blocks.filter(
-      (block) => block.BlockType === "LINE"
-    )
-      .map((block) => block.Text)
-      .join("\n");
+      // Upload JD metadata file to S3
+      await S3.putObject({
+        Bucket: BUCKET_NAME,
+        Key: jdKey,
+        Body: JSON.stringify(metadata),
+        ContentType: 'application/json',
+      }).promise();
 
-    console.log("Extracted Text:", extractedText);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ message: 'JD uploaded successfully', jdId: newJdId }),
+      };
 
-    // Sanitize extracted text before sending to Bedrock
-    const sanitizedText = sanitizeText(extractedText);
-    console.log("Sanitized Text:", sanitizedText);
+    } else if (uploadType === 'Resume') {
+      const { jdId } = metadata;
 
-    // Step 2: Send sanitized text to AWS Bedrock
-    const bedrockResponse = await sendToBedrock(sanitizedText);
-    console.log("Bedrock Response:", bedrockResponse);
+      if (!jdId) {
+        throw new Error('Invalid payload: Missing JD ID for Resume upload.');
+      }
 
-    // Step 3: Return processed response to the client
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        message: "File processed successfully",
-        extractedText,
-        bedrockSummary: bedrockResponse,
-      }),
-    };
+      const resumeKey = `resumes/${jdId}/${uuid.v4()}.pdf`;
+
+      // Check if JD exists in DynamoDB
+      const jdResult = await DynamoDB.get({
+        TableName: TABLE_NAME,
+        Key: { jdId },
+      }).promise();
+
+      if (!jdResult.Item) {
+        throw new Error(`JD with ID ${jdId} not found.`);
+      }
+
+      // Upload Resume to S3
+      const fileBuffer = Buffer.from(file, 'base64');
+      await S3.putObject({
+        Bucket: BUCKET_NAME,
+        Key: resumeKey,
+        Body: fileBuffer,
+        ContentType: 'application/pdf',
+      }).promise();
+
+      // Update DynamoDB resumes field
+      await DynamoDB.update({
+        TableName: TABLE_NAME,
+        Key: { jdId },
+        UpdateExpression: 'SET resumes = list_append(if_not_exists(resumes, :emptyList), :resume)',
+        ExpressionAttributeValues: {
+          ':resume': [resumeKey],
+          ':emptyList': [],
+        },
+      }).promise();
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ message: 'Resume uploaded successfully', resumeKey }),
+      };
+    } else {
+      throw new Error("Invalid upload type. Must be 'JD' or 'Resume'.");
+    }
+
   } catch (error) {
-    console.error("Error processing file:", error);
+    console.error('Error processing upload:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        message: "Error processing file",
-        error: error.message,
-      }),
+      body: JSON.stringify({ message: 'Error processing upload', error: error.message }),
     };
   }
 };
-
-// Function to send extracted text to AWS Bedrock
-async function sendToBedrock(inputText) {
-  try {
-    console.log("Sending text to AWS Bedrock for processing...");
-
-    // Prepare the payload following Titan's schema
-    const payload = {
-      inputText: `User: ${sanitizeText(inputText)}\nBot:`, // Wrap the inputText per Titan's conversational format
-      textGenerationConfig: {
-        maxTokenCount: 512
-      },
-    };
-
-    // Construct Bedrock request parameters
-    const params = {
-      modelId: "amazon.titan-text-lite-v1", // Model ID for Titan Text Lite
-      contentType: "application/json",
-      accept: "application/json",
-      body: JSON.stringify(payload),
-    };
-
-    console.log('params', params);
-
-    // Send the request to AWS Bedrock
-    const command = new InvokeModelCommand(params);
-    const response = await bedrockClient.send(command);
-
-    console.log("Raw Bedrock Response:", response);
-
-    // Parse the response body
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    console.log("Parsed Bedrock Response:", responseBody);
-
-    // Extract generated text
-    const generatedText =
-      responseBody.results?.[0]?.outputText || "No generated text available";
-
-    return generatedText;
-  } catch (error) {
-    console.error("Error invoking AWS Bedrock:", error.message);
-    throw error; // Ensure the error propagates
-  }
-}
-
-function sanitizeText(text) {
-    return text
-      .replace(/[^\x00-\x7F]/g, "") // Remove non-ASCII characters
-      .replace(/\s+/g, " ")         // Collapse all whitespace (including newlines) into a single space
-      .trim();                      // Remove leading/trailing whitespace
-  }
-  

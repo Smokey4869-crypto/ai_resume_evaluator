@@ -9,3 +9,7 @@ output "sqs_queue_url" {
 output "lambda_function_name" {
     value = module.lambda_function.function_name
 }
+
+output "dynamo_table_name" {
+  value = module.dynamo_table.table_name
+}

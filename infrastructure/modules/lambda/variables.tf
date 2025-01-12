@@ -32,3 +32,13 @@ variable "aws_region" {
   description = "The region of the allowed resource access"
   type        = string
 }
+
+variable "dynamo_table_name" {
+  description = "The name of the DynamoDB table for metadata storage"
+  type        = string
+}
+
+variable "aws_account_id" {
+  description = "The AWS account ID"
+  type        = string
+}

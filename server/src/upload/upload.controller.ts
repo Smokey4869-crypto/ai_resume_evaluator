@@ -1,14 +1,11 @@
 import {
   Controller,
-  FileTypeValidator,
-  HttpStatus,
-  MaxFileSizeValidator,
-  ParseFilePipe,
   Post,
-  Res,
   UploadedFile,
-  UploadedFiles,
   UseInterceptors,
+  Body,
+  BadRequestException,
+  UploadedFiles,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
@@ -18,24 +15,27 @@ export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
   @Post()
-  @UseInterceptors(FilesInterceptor('files'))
-  async uploadFiles(
-    @UploadedFiles()
-    // used for handling SINGLE FILE only
-    //   new ParseFilePipe({
-    //     validators: [
-    //       new MaxFileSizeValidator({ maxSize: 1000 }),
-    //       new FileTypeValidator({ fileType: 'image/jpeg' }),
-    //     ],
-    //   }),
-    files: Array<Express.Multer.File>,
+  @UseInterceptors(FilesInterceptor('files')) // Ensure "files" matches the key used in FormData
+  async uploadFile(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body('metadata') metadata: string, // Extract the metadata field
   ) {
-    // console.log(await this.uploadService.upload(files[0].originalname, files[0].buffer))
-    const result = await this.uploadService.upload(
-      files[0].originalname,
-      files[0].buffer,
-    );
+    try {
+      // Parse metadata (frontend sends it as a JSON string)
+      const parsedMetadata = metadata ? JSON.parse(metadata) : null;
 
-    return result;
+      // Pass files and metadata to the service for processing
+      const result = await this.uploadService.upload(files, parsedMetadata);
+
+      // Return the service's response
+      return result;
+    } catch (error) {
+      console.error('Error in controller:', error);
+      return {
+        code: 500,
+        message: 'Failed to upload files',
+        error: error.message,
+      };
+    }
   }
 }
